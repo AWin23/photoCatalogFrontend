@@ -25,46 +25,48 @@ export default function PhotoUpload() {
     }
   };
 
-  // Function to upload image to backend
-  const uploadImage = async (uri: string) => {
-    console.log("UPLOAD IMAGE IS HIT");
-    try {
-      const jpegUri = await convertToJpeg(uri); // Convert HEIC → JPEG
-      console.log("JPEG Image URI:", jpegUri); // Debugging
-  
-      // Instead of using fetch() to get a blob, append the URI directly
-      const formData = new FormData();
-      formData.append("image", {
-        uri: jpegUri,
-        type: "image/jpeg",
-        name: "upload.jpg",
-      });
-  
-      console.log("FormData created. Sending request...");
-      console.log("Jpeg URI:", jpegUri);
-  
-      const uploadResponse = await fetch("http://{replace with you ID}/photo/create/", {
-        method: "CREATE",
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        body: formData,
-      });
-  
-      console.log("Upload response:", uploadResponse);
-  
-      const data = await uploadResponse.json();
+// Function to upload image to backend
+const uploadImage = async (uri: string) => {
+  console.log("UPLOAD IMAGE IS HIT");
+  try {
+    const jpegUri = await convertToJpeg(uri); // Convert HEIC → JPEG
+    console.log("JPEG Image URI:", jpegUri); // Debugging
+
+    // Instead of using fetch() to get a blob, append the URI directly
+    const formData = new FormData();
+    formData.append("image", {
+      uri: jpegUri,
+      type: "image/jpg",
+      name: "upload.jpg",
+    });
+
+    console.log("FormData created. Sending request...");
+    console.log("Jpeg URI:", jpegUri);
+
+    const uploadResponse = await fetch("http://{replace with your ID}/api/photo/create/", {
+      method: "POST",
+      headers: {}, // No Content-Type, let the browser handle it
+      body: formData,
+    });
+
+    console.log("Upload response:", uploadResponse);
+
+    // Check if response is JSON before parsing
+    const contentType = uploadResponse.headers.get("content-type");
+    let data;
+    if (contentType && contentType.includes("application/json")) {
+      data = await uploadResponse.json();
       console.log("Data payload:", data);
-  
-      if (uploadResponse.ok) {
-        console.log("Success: Image uploaded successfully!");
-      } else {
-        console.log("Error:", data.error || "Failed to upload image.");
-      }
-    } catch (error) {
-      console.log("Uploading Image Error:", error);
+    } else {
+      const errorText = await uploadResponse.text();
+      console.error("Server response is not JSON:", errorText);
     }
-  };
+    
+  } catch (error) {
+    console.error("Uploading Image Error:", error);
+  }
+};
+
   
 
 // Function to open the camera

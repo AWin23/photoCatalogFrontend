@@ -9,7 +9,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { HelloWave } from "@/components/HelloWave";
 
 
-const API_URL = "http://{replace with your IP}/api/photo/"; // Change this if deployed
+const API_URL = "http://{replace with you IP}:8000/api/photo/"; // Change this if deployed
 
 type Photo = {
   PhotoID: number;
@@ -21,35 +21,40 @@ export default function TabTwoScreen() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);  // New state for pull-to-refresh
 
-  useEffect(() => {
-    const fetchPhotos = async () => {
+
+  const fetchPhotos = async () => {
+    setLoading(true);  // Ensure loading is true when fetching data
+    try {
       console.log("Fetching from: ", API_URL);
-      try {
-        const response = await fetch(API_URL);
-        console.log("Response Status:", response.status);
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        const data: Photo[] = await response.json();
-        console.log("Fetched Data:", data);
-
-        // Ensure photos array has valid objects, and handle null or undefined values
-        const validPhotos = data.map(photo => ({
-          ...photo,
-          FileName: photo.FileName || 'No Filename', // Fallback for null or undefined FileName
-          TimeStamp: photo.TimeStamp || 'No Timestamp' // Fallback for null or undefined TimeStamp
-        }));
-
-        setPhotos(validPhotos); // Set the processed data
-      } catch (err: any) {
-        console.error("Fetch Error:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      const response = await fetch(API_URL);
+      console.log("Response Status:", response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
       }
-    };
+      const data: Photo[] = await response.json();
+      console.log("Fetched Data:", data);
 
+      // Ensure photos array has valid objects, and handle null or undefined values
+      const validPhotos = data.map(photo => ({
+        ...photo,
+        FileName: photo.FileName || 'No Filename', // Fallback for null or undefined FileName
+        TimeStamp: photo.TimeStamp || 'No Timestamp' // Fallback for null or undefined TimeStamp
+      }));
+
+      setPhotos(validPhotos); // Set the processed data
+    } catch (err: any) {
+      console.error("Fetch Error:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);  // Stop refreshing when the fetch is done
+    }
+  };
+
+  // Call fetchPhotos initially and on refresh
+  useEffect(() => {
     fetchPhotos();
   }, []);
 
@@ -86,7 +91,7 @@ export default function TabTwoScreen() {
           renderItem={({ item }) => (
             <View style={styles.photoCard}>
               {item.FileName ? (
-                <Image source={{ uri: `http://10.0.1.104/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
+                <Image source={{ uri: `http://{replace with your IP}/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
               ) : (
                 <IconSymbol size={24} name="photo.fill" color="blue" />
               )}
@@ -95,6 +100,8 @@ export default function TabTwoScreen() {
               <Text>{item.TimeStamp || 'No Timestamp'}</Text>
             </View>
           )}
+          onRefresh={fetchPhotos}  // Trigger fetchPhotos when pull-to-refresh is initiated
+          refreshing={refreshing}  // Indicate when the list is refreshing
         />
       )}
 

@@ -10,7 +10,7 @@ const PhotoDelete = () => {
   // Function to fetch the photo data
   const fetchPhotos = async () => {
     try {
-      const response = await fetch('http://{replace with you IP}/api/photo'); // Adjust the URL to your API endpoint
+      const response = await fetch('http://{replace with your IP}/api/photo'); // Adjust the URL to your API endpoint
       if (response.ok) {
         const data = await response.json();
         setFetchedData(data); // Store the fetched data in the state
@@ -42,11 +42,11 @@ const PhotoDelete = () => {
     console.log("Current ParsedPhotoID: " + parsedPhotoID);
     
     try {
-        const response = await fetch(`http://{replace with your IP}/api/photo/${parsedPhotoID}`, {
+        const response = await fetch(`http://{replace with you IP}:8000/api/photo/${parsedPhotoID}`, {
             method: 'DELETE',
         });
         
-        console.log(`Current Delete URL: http://{replace with your IP}/api/photo/${parsedPhotoID}`);
+        console.log(`Current Delete URL: http://{replace with your IP}:8000/api/photo/${parsedPhotoID}`);
 
       if (response.ok) {
         setMessage('Photo deleted successfully');
