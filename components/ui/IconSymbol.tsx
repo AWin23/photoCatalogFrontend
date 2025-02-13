@@ -11,7 +11,7 @@ const MAPPING = {
   // See SF Symbols in the SF Symbols app on Mac.
   'photo.fill': 'picture-in-picture',
   'camera.fill': 'code',
-  'chevron.right': 'chevron-right',
+  'image-broken': 'image-not-supported',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Image, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, Platform, ActivityIndicator, FlatList, View, Text } from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -8,12 +8,12 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from "@/components/ui/IconSymbol";
 
 
-const API_URL = "http://localhost:8000/api/photos/"; // Change this if deployed
+const API_URL = "http://{'replace with IP address'}/api/photo/"; // Change this if deployed
 
 type Photo = {
-  id: number;
-  file_name: string;
-  image_url: string; // make sure Django API returns this URL
+  PhotoID: number;
+  FileName: string;
+  TimeStamp: string;
 }
 
 export default function HomeScreen() {
@@ -23,22 +23,36 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const fetchPhotos = async () => {
+      console.log("Fetching from: ", API_URL);
       try {
         const response = await fetch(API_URL);
+        console.log("Response Status:", response.status);
         if (!response.ok) {
           throw new Error(`HTTP Error: ${response.status}`);
         }
         const data: Photo[] = await response.json();
-        setPhotos(data);
+        console.log("Fetched Data:", data);
+  
+        // Ensure photos array has valid objects, and handle null or undefined values
+        const validPhotos = data.map(photo => ({
+          ...photo,
+          FileName: photo.FileName || 'No Filename', // Fallback for null or undefined FileName
+          TimeStamp: photo.TimeStamp || 'No Timestamp' // Fallback for null or undefined TimeStamp
+        }));
+  
+        setPhotos(validPhotos); // Set the processed data
       } catch (err: any) {
+        console.error("Fetch Error:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchPhotos();
   }, []);
+  
+  
 
   return (
     <ParallaxScrollView
@@ -60,23 +74,29 @@ export default function HomeScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Make a GET REQUEST to display all existing photos</ThemedText>
 
-        {/* {loading ? (
-          <ActivityIndicator size="large" color="#0000ff" />
-        ) : error ? (
-          <ThemedText type="error">Error: {error}</ThemedText>
-        ) : (
-          <FlatList
-            data={photos}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.photoCard}>
-                <Image source={{ uri: item.image_url }} style={styles.photo} />
-                <ThemedText>{item.file_name}</ThemedText>
-              </View>
-            )}
-          />
-        )} */}
-
+        {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : error ? (
+        <ThemedText type="error">Error: {error}</ThemedText>
+      ) : (
+        <FlatList
+          data={photos}
+          keyExtractor={(item) => item.PhotoID.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.photoCard}>
+              {/* Show image if FileName exists, otherwise show default icon */}
+              {item.FileName ? (
+                <Image source={{ uri: `http://{`replace with ip address for now`}/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
+              ) : (
+                <IconSymbol size={24} name="photo.fill" color="black" />
+              )}
+              <Text>{item.FileName || 'No Filename'}</Text>
+              <Text>{item.PhotoID}</Text>
+              <Text>{item.TimeStamp || 'No Timestamp'}</Text>
+            </View>
+          )}
+        />
+      )}
 
         <ThemedText>
           Here is supposed to display rows of photos from the DB. 
@@ -110,5 +130,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  photoCard: {
+    backgroundColor: "#fff",
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  photo: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
   },
 });
