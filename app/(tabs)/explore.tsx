@@ -1,13 +1,58 @@
-import { StyleSheet, Image, Platform, TouchableOpacity, Text } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Image, Platform, ActivityIndicator, FlatList, View, Text } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { HelloWave } from "@/components/HelloWave";
+
+
+const API_URL = "http://{`replace with IP address}:8000/api/photo/"; // Change this if deployed
+
+type Photo = {
+  PhotoID: number;
+  FileName: string;
+  TimeStamp: string;
+};
 
 export default function TabTwoScreen() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      console.log("Fetching from: ", API_URL);
+      try {
+        const response = await fetch(API_URL);
+        console.log("Response Status:", response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP Error: ${response.status}`);
+        }
+        const data: Photo[] = await response.json();
+        console.log("Fetched Data:", data);
+
+        // Ensure photos array has valid objects, and handle null or undefined values
+        const validPhotos = data.map(photo => ({
+          ...photo,
+          FileName: photo.FileName || 'No Filename', // Fallback for null or undefined FileName
+          TimeStamp: photo.TimeStamp || 'No Timestamp' // Fallback for null or undefined TimeStamp
+        }));
+
+        setPhotos(validPhotos); // Set the processed data
+      } catch (err: any) {
+        console.error("Fetch Error:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPhotos();
+  }, []);
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -18,23 +63,41 @@ export default function TabTwoScreen() {
           name="camera.fill"
           style={styles.headerImage}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
+      }
+    >
+
+    <ThemedView style={styles.titleContainer}>
+        <ThemedText type="title">Displaying Your List of Photos</ThemedText>
+          <HelloWave />
+      </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
         <ThemedText type="title">Photo Shoots</ThemedText>
       </ThemedView>
 
-      {/* Buttons */}
-      <ThemedView style={"styles.buttonContainer"}>
-        <TouchableOpacity style={styles.uploadButton}>
-          <Text style={styles.buttonText}>Upload Photos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.deleteButton]}>
-          <Text style={styles.buttonText}>Delete Photos</Text>
-        </TouchableOpacity>
-      </ThemedView> 
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : error ? (
+        <ThemedText type="error">Error: {error}</ThemedText>
+      ) : (
+        <FlatList
+          data={photos}
+          keyExtractor={(item) => item.PhotoID.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.photoCard}>
+              {item.FileName ? (
+                <Image source={{ uri: `http://{`replace with IP adresss`}/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
+              ) : (
+                <IconSymbol size={24} name="photo.fill" color="black" />
+              )}
+              <Text>{item.FileName || 'No Filename'}</Text>
+              <Text>{item.PhotoID}</Text>
+              <Text>{item.TimeStamp || 'No Timestamp'}</Text>
+            </View>
+          )}
+        />
+      )}
 
-
-      <ThemedText>This is where you will upload your pictures via Camera or Gallery.</ThemedText>
       <Collapsible title="File-based routing">
         <ThemedText>
           This app has two screens:{' '}
@@ -42,7 +105,6 @@ export default function TabTwoScreen() {
           <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
         </ThemedText>
 
- 
         {Platform.select({
           ios: (
             <ThemedText>
@@ -63,94 +125,18 @@ const styles = StyleSheet.create({
     left: -35,
     position: 'absolute',
   },
+  stepContainer: {
+    gap: 8,
+    marginBottom: 8,
+  },
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  uploadButton: {
-    backgroundColor: '#02C9F1',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20, // Rounded rectangle shape
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  deleteButton: {
-    backgroundColor: '#FF3B30',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20, // Rounded rectangle shape
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  photoCard: {
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
   },
 });
-
-{/* <ThemedText>
-  The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-  sets up the tab navigator.
-</ThemedText>
-<ExternalLink href="https://docs.expo.dev/router/introduction">
-  <ThemedText type="link">Learn more</ThemedText>
-</ExternalLink>
-</Collapsible>
-<Collapsible title="Android, iOS, and web support">
-<ThemedText>
-  You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-  <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-</ThemedText>
-</Collapsible>
-<Collapsible title="Images">
-<ThemedText>
-  For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-  <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-  different screen densities
-</ThemedText>
-<Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-<ExternalLink href="https://reactnative.dev/docs/images">
-  <ThemedText type="link">Learn more</ThemedText>
-</ExternalLink>
-</Collapsible>
-<Collapsible title="Custom fonts">
-<ThemedText>
-  Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-  <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-    custom fonts such as this one.
-  </ThemedText>
-</ThemedText>
-<ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-  <ThemedText type="link">Learn more</ThemedText>
-</ExternalLink>
-</Collapsible>
-<Collapsible title="Light and dark mode components">
-<ThemedText>
-  This template has light and dark mode support. The{' '}
-  <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-  what the user's current color scheme is, and so you can adjust UI colors accordingly.
-</ThemedText>
-<ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-  <ThemedText type="link">Learn more</ThemedText>
-</ExternalLink>
-</Collapsible>
-<Collapsible title="Animations">
-<ThemedText>
-  This template includes an example of an animated component. The{' '}
-  <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-  the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-  library to create a waving hand animation.
-</ThemedText> */}
