@@ -14,7 +14,7 @@ export default function HomeScreen() {
   };
 
   const handleDeletePress = () => {
-    navigation.navigate('PhotoDelete');  // Navigate to the PhotoDelete screen
+    navigation.navigate('photoDelete');  // Navigate to the PhotoDelete screen
   };
 
   return (

@@ -1,50 +1,117 @@
 import React, { useState } from 'react';
-import { Text, View, Button, Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { Text, View, Button, Alert, StyleSheet } from 'react-native';
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ThemedText } from '@/components/ThemedText';
 
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from "expo-image-manipulator"; // Import ImageManipulator
+
+
 export default function PhotoUpload() {
-  const [image, setImage] = useState(null); // State to hold the selected image
+  const [image, setImage] = useState<string | null>(null); // State to hold the selected image
 
-  // Function to open the camera
-  const openCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.granted) {
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.cancelled) {
-        setImage(result.uri); // Set the selected image
-      }
-    } else {
-      alert('Camera permission is required');
+  // Function to convert HEIC to JPEG
+  const convertToJpeg = async (uri: string): Promise<string> => {
+    try {
+      const converted = await ImageManipulator.manipulateAsync(
+        uri,
+        [],
+        { format: ImageManipulator.SaveFormat.JPEG } // Convert HEIC → JPEG
+      );
+      return converted.uri; // Return new JPEG URI
+    } catch (error) {
+      console.error("Image conversion error:", error);
+      return uri; // Fallback to original URI if conversion fails
     }
   };
 
-  // Function to open the gallery
-  const openGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.granted) {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
+  // Function to upload image to backend
+  const uploadImage = async (uri: string) => {
+    console.log("UPLOAD IMAGE IS HIT");
+    try {
+      const jpegUri = await convertToJpeg(uri); // Convert HEIC → JPEG
+      console.log("JPEG Image URI:", jpegUri); // Debugging
+  
+      // Instead of using fetch() to get a blob, append the URI directly
+      const formData = new FormData();
+      formData.append("image", {
+        uri: jpegUri,
+        type: "image/jpeg",
+        name: "upload.jpg",
       });
-
-      if (!result.cancelled) {
-        setImage(result.uri); // Set the selected image
+  
+      console.log("FormData created. Sending request...");
+      console.log("Jpeg URI:", jpegUri);
+  
+      const uploadResponse = await fetch("http://{replace with you ID}/photo/create/", {
+        method: "CREATE",
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        body: formData,
+      });
+  
+      console.log("Upload response:", uploadResponse);
+  
+      const data = await uploadResponse.json();
+      console.log("Data payload:", data);
+  
+      if (uploadResponse.ok) {
+        console.log("Success: Image uploaded successfully!");
+      } else {
+        console.log("Error:", data.error || "Failed to upload image.");
       }
-    } else {
-      alert('Gallery permission is required');
+    } catch (error) {
+      console.log("Uploading Image Error:", error);
     }
   };
+  
+
+// Function to open the camera
+const openCamera = async () => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    alert("Camera permission is required");
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    aspect: [4, 3],
+    quality: 1,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    const selectedUri = result.assets[0].uri; // Correctly accessing the URI
+    setImage(selectedUri); // Set the selected image
+    uploadImage(selectedUri);
+  }
+};
+
+// Function to open the gallery
+const openGallery = async () => {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    alert("Gallery permission is required");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    allowsEditing: true,
+    aspect: [4, 3],
+    quality: 1,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    const selectedUri = result.assets[0].uri; // Correctly accessing the URI
+    setImage(selectedUri); // Set the selected image
+    uploadImage(selectedUri);
+  }
+};
+
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: "silver" }}>
+    <View style={styles.container}>
       <ThemedText type="title">Upload Options</ThemedText>      
 
       {/* Display the selected image */}
@@ -59,3 +126,12 @@ export default function PhotoUpload() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#666666',
+  },
+})

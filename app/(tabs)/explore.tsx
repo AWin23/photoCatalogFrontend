@@ -9,7 +9,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { HelloWave } from "@/components/HelloWave";
 
 
-const API_URL = "http://{`replace with IP address}:8000/api/photo/"; // Change this if deployed
+const API_URL = "http://{replace with your IP}/api/photo/"; // Change this if deployed
 
 type Photo = {
   PhotoID: number;
@@ -86,9 +86,9 @@ export default function TabTwoScreen() {
           renderItem={({ item }) => (
             <View style={styles.photoCard}>
               {item.FileName ? (
-                <Image source={{ uri: `http://{`replace with IP adresss`}/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
+                <Image source={{ uri: `http://10.0.1.104/api/photos/${item.PhotoID}.jpg` }} style={{ width: 100, height: 100 }} />
               ) : (
-                <IconSymbol size={24} name="photo.fill" color="black" />
+                <IconSymbol size={24} name="photo.fill" color="blue" />
               )}
               <Text>{item.FileName || 'No Filename'}</Text>
               <Text>{item.PhotoID}</Text>
