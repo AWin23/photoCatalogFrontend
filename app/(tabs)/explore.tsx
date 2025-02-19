@@ -9,7 +9,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { HelloWave } from "@/components/HelloWave";
 
 
-const API_URL = "http://{replace with your IP}:8000/api/photo/"; // Change this if deployed
+const API_URL = "http://{replace with you IP}:8000/api/photo/"; // Change this if deployed
 
 type Photo = {
   PhotoID: number;
@@ -58,6 +58,7 @@ export default function TabTwoScreen() {
   useEffect(() => {
     fetchPhotos();
   }, []);
+  
 
   return (
     <ParallaxScrollView
@@ -87,23 +88,22 @@ export default function TabTwoScreen() {
         <ThemedText type="error">Error: {error}</ThemedText>
       ) : (
         <FlatList
-          data={photos}
-          keyExtractor={(item) => item.PhotoID.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.photoCard}>
+        data={photos}
+        keyExtractor={(item) => item.PhotoID.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.photoCard}>
               {item.FileName ? (
-                <Image source={{ uri: `http://{replace with your IP}/api/photos/${item.PhotoID}` }} />
+                <Image source={{ uri: `http://{replace with your ID}:8000/api${item.ImagePath}` }} style={styles.pictureItself} />
               ) : (
                 <IconSymbol size={24} name="photo.fill" color="blue" />
               )}
-              <Text>{item.ImagePath || 'No Filename'}</Text>
               <Text>{item.PhotoID}</Text>
               <Text>{item.TimeStamp || 'No Timestamp'}</Text>
             </View>
           )}
           onRefresh={fetchPhotos}  // Trigger fetchPhotos when pull-to-refresh is initiated
           refreshing={refreshing}  // Indicate when the list is refreshing
-        />
+          />
       )}
 
       <Collapsible title="File-based routing">
@@ -127,6 +127,11 @@ export default function TabTwoScreen() {
 }
 
 const styles = StyleSheet.create({
+  pictureItself: {
+    width: 200, 
+    height: 200,  
+    transform: [{ scale: 1 }],
+  },
   headerImage: {
     color: '#808080',
     bottom: -90,
