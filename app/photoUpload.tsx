@@ -43,7 +43,7 @@ const uploadImage = async (uri: string) => {
     console.log("FormData created. Sending request...");
     console.log("Jpeg URI:", jpegUri);
 
-    const uploadResponse = await fetch("http://{replace with your ID}:8000/api/photo/create/", {
+    const uploadResponse = await fetch("http://{replace with your IP}:8000/api/photo/create/", {
       method: "POST",
       headers: {}, // No Content-Type, let the browser handle it
       body: formData,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, View, Text, StyleSheet } from 'react-native';
+import { TextInput, View, Text, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 
 const PhotoDelete = () => {
@@ -10,7 +10,7 @@ const PhotoDelete = () => {
   // Function to fetch the photo data
   const fetchPhotos = async () => {
     try {
-      const response = await fetch('http://{replace with your IP}:8000/api/photo'); // Adjust the URL to your API endpoint
+      const response = await fetch('http://{replace with you IP}:8000/api/photo'); // Adjust the URL to your API endpoint
       if (response.ok) {
         const data = await response.json();
         setFetchedData(data); // Store the fetched data in the state
@@ -42,11 +42,11 @@ const PhotoDelete = () => {
     console.log("Current ParsedPhotoID: " + parsedPhotoID);
     
     try {
-        const response = await fetch(`http://{replace with your ID}:8000/api/photo/${parsedPhotoID}`, {
+        const response = await fetch(`http://{replace with your IP}:8000/api/photo/${parsedPhotoID}`, {
             method: 'DELETE',
         });
         
-        console.log(`Current Delete URL: http://{replace with your ID}:8000/api/photo/${parsedPhotoID}`);
+        console.log(`Current Delete URL: http://{replace with your IP}:8000/api/photo/${parsedPhotoID}`);
 
       if (response.ok) {
         setMessage('Photo deleted successfully');
@@ -60,18 +60,26 @@ const PhotoDelete = () => {
   };
 
   return (
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
     <View style={styles.container}>
-    <ThemedText type="title">Upload Options</ThemedText>        
+      <ThemedText type="title">Delete Photos</ThemedText>
+      <Text style={styles.directionsText}>Type in your desire Photo Number to delete!</Text>        
       <TextInput
         style={styles.input}
         placeholder="Enter PhotoID"
         keyboardType="numeric"
         value={photoID}
-        onChangeText={(text) => setPhotoID(text)}
+        onChangeText={(text) => {
+          setPhotoID(text);
+          if (message === 'Photo deleted successfully') {
+            setMessage(''); // Clear success message when user starts typing again
+          }
+        }}
       />
       <Text style={styles.buttonText} onPress={handleDelete}>Delete Photo</Text>
-      <ThemedText>{message}</ThemedText>
+      {message && <ThemedText>{message}</ThemedText>}
     </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -81,16 +89,22 @@ const styles = StyleSheet.create({
       justifyContent: 'flex-start',
       alignItems: 'center',
       backgroundColor: '#666666',
-      paddingTop: 50,
+      paddingTop: 40,
     },
     input: {
         height: 40,
         borderColor: 'black', // Black border color
         borderWidth: 2, // Thicker black border
+        marginTop: 20,
+        borderRadius: 10,
         width: '80%',
         marginBottom: 10,
         paddingLeft: 10,
         color: 'black', // Black text color
+    },
+    directionsText: {
+      color: 'white',
+
     },
 
     button: {

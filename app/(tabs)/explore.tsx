@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Image, Platform, ActivityIndicator, FlatList, View, Text } from 'react-native';
+import { StyleSheet, Image, ActivityIndicator, FlatList, View, Text } from 'react-native';
 
-import { Collapsible } from '@/components/Collapsible';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { HelloWave } from "@/components/HelloWave";
+
+import { LinearGradient } from 'expo-linear-gradient';
 
 
-const API_URL = "http://{replace with you IP}:8000/api/photo/"; // Change this if deployed
+const API_URL = "http://{replace with your IP}:8000/api/photo/"; // Change this if deployed
 
 type Photo = {
   PhotoID: number;
@@ -59,97 +58,98 @@ export default function TabTwoScreen() {
     fetchPhotos();
   }, []);
   
-
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#02C9F1"
-          name="camera.fill"
-          style={styles.headerImage}
-        />
-      }
-    >
-
-    <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Displaying Your List of Photos</ThemedText>
-          <HelloWave />
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="title">Photo Shoots</ThemedText>
-      </ThemedView>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : error ? (
-        <ThemedText type="error">Error: {error}</ThemedText>
-      ) : (
-        <FlatList
-        data={photos}
-        keyExtractor={(item) => item.PhotoID.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.photoCard}>
-              {item.FileName ? (
-                <Image source={{ uri: `http://{replace with your ID}:8000/api${item.ImagePath}` }} style={styles.pictureItself} />
-              ) : (
-                <IconSymbol size={24} name="photo.fill" color="blue" />
+    return (
+      <View style={styles.container}>
+        {/* Left Railing */}
+        <LinearGradient colors={['#2c2c2c', '#4a4a4a']} style={styles.railLeft} />
+  
+        {/* Main Content */}
+        <View style={styles.content}>
+          <ThemedView style={styles.titleContainer}>
+            <ThemedText type="title">Displaying Your List of Photos</ThemedText>
+          </ThemedView>
+  
+          {loading ? (
+            <ActivityIndicator size="large" color="#0000ff" />
+          ) : error ? (
+            <ThemedText type="error">Error: {error}</ThemedText>
+          ) : (
+            <FlatList
+              data={photos}
+              keyExtractor={(item) => item.PhotoID.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.photoCard}>
+                  {item.FileName ? (
+                    <Image source={{ uri: `http://{replace with your IP}:8000/api${item.ImagePath}` }} style={styles.pictureItself} />
+                  ) : (
+                    <IconSymbol size={24} name="photo.fill" color="blue" />
+                  )}
+                  <Text>{item.PhotoID}</Text>
+                  <Text>{item.TimeStamp || 'No Timestamp'}</Text>
+                </View>
               )}
-              <Text>{item.PhotoID}</Text>
-              <Text>{item.TimeStamp || 'No Timestamp'}</Text>
-            </View>
+              onRefresh={fetchPhotos}
+              refreshing={refreshing}
+            />
           )}
-          onRefresh={fetchPhotos}  // Trigger fetchPhotos when pull-to-refresh is initiated
-          refreshing={refreshing}  // Indicate when the list is refreshing
-          />
-      )}
-
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
-  );
+        </View>
+  
+        {/* Right Railing */}
+        <LinearGradient colors={['#2c2c2c', '#4a4a4a']} style={styles.railRight} />
+      </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  pictureItself: {
-    width: 200, 
-    height: 200,  
-    transform: [{ scale: 1 }],
+  container: {
+    flex: 1,
+    flexDirection: 'row', // Railings + Main Content
+    backgroundColor: '#1e1e1e', // Dark background for modern look
   },
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  railLeft: {
+    width: 20, // Width of the left railing
+    height: '100%',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  railRight: {
+    width: 20, // Width of the right railing
+    height: '100%',
+  },
+  content: {
+    flex: 1,
+    padding: 10,
+    alignItems: 'center',
+    paddingBottom: 90,
   },
   titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 30,
+    paddingTop: 30,
+    paddingBottom: 15,
+    borderRadius: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
   },
   photoCard: {
+    alignItems: 'center',
     padding: 10,
     marginBottom: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+    backgroundColor: '#e2e5de', // Dark grayish tone
+    borderRadius: 12, // Modern rounded edges
+    marginHorizontal: 10,
+    width: '95%',
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6, // Android shadow effect
+  },
+  pictureItself: {
+    width: 200,
+    height: 200,
+    transform: [{ scale: 1 }],
+    borderRadius: 10, // Slight roundness for a smooth look
   },
 });
+
