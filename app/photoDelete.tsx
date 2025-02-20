@@ -10,7 +10,7 @@ const PhotoDelete = () => {
   // Function to fetch the photo data
   const fetchPhotos = async () => {
     try {
-      const response = await fetch('http://{replace with you IP}:8000/api/photo'); // Adjust the URL to your API endpoint
+      const response = await fetch('http://{replace with your IP}:8000/api/photo'); // Adjust the URL to your API endpoint
       if (response.ok) {
         const data = await response.json();
         setFetchedData(data); // Store the fetched data in the state
