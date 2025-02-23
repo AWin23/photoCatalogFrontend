@@ -8,12 +8,13 @@ import { ThemedView } from '@/components/ThemedView';
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
-const API_URL = "http://{replace with your own IP}:8000/api/location/"; // Change this if deployed
+const API_URL = "http://{replace with your IP}:8000/api/location/"; // Change this if deployed
+const BASE_API_URL = "http://{replace with your IP}:8000/api/"; // change this if reployed
 
 
 // type data for the Locations model
 type Location = {
-  LocationID: number;
+  LocationId: number;
   LocationName: string;
   Address: string;
   latitude: number;
@@ -104,7 +105,12 @@ const LocationScreen = () => {
   // function to handle the marker press
   const handleMarkerPress = async (locationId: number) => {
     try {
-      const response = await axios.get(`${API_URL}/photoshoots?locationID=${locationId}`);
+
+      // Ensure no trailing slash before the endpoint
+      const cleanUrl = `${BASE_API_URL}photoshoots?locationID=${locationId}`;
+      
+      const response = await axios.get(cleanUrl);
+    
       if (response.data.length === 0) {
         alert("No photoshoots found at this location.");
       } else {
@@ -122,7 +128,7 @@ const LocationScreen = () => {
   const addLocation = async () => {
     try {
       const locationName = address; // Use the address for location name
-      await axios.post("http://{replace with your own IP}:8000/api/location/create/", 
+      await axios.post("http://{replace with your IP}:8000/api/location/create/", 
         {
           address: address,
           latitude: marker.latitude,
@@ -157,8 +163,7 @@ const LocationScreen = () => {
     if (!date) return;
   
     try {
-      await axios.post(`${API_URL}/photoshoots/create/`, {
-        LocationId: marker.LocationID,
+      await axios.post(`${API_URL}/photoshoot/create/`, {
         Date: date,
       });
   
@@ -226,7 +231,7 @@ const LocationScreen = () => {
                 key={`${location.latitude}-${location.longitude}`} // Create a unique key from latitude and longitude
                 coordinate={{ latitude: location.latitude, longitude: location.longitude }}
                 title={location.LocationName || "Saved Location"}
-                onPress={() => handleMarkerPress(location.LocationID)}
+                onPress={() => handleMarkerPress(location.LocationId)}
                 pinColor="green"
               />
             ) : null
