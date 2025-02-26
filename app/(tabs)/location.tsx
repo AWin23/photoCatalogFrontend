@@ -8,9 +8,9 @@ import { ThemedView } from '@/components/ThemedView';
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
-const API_URL = "http://{replace with your IP Address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
-const BASE_API_URL = "http://{replace with your IP Address}:8000/api/"; // change this if reployed (replace first part with your real IP)
-const BASE_URL = "http://{replace with your IP Address}:8000/"; // replace first part with your real IP
+const API_URL = "http://{replace with your IP address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
+const BASE_API_URL = "http://{replace with your IP address}:8000/api/"; // change this if reployed (replace first part with your real IP)
+const BASE_URL = "http://{replace with your IP address}4:8000/"; // replace first part with your real IP
 
 
 // type data for the Locations model
@@ -135,14 +135,14 @@ const LocationScreen = () => {
   };
 
   // function to handle the marker press
+  console.log("Checking delete button condition:", selectedLocation, locations.some(loc => loc.LocationId === selectedLocation?.LocationId));
   const handleMarkerPress = (location: Location) => {
     console.log("Marker Pressed: ", location);
-    if (selectedLocation?.LocationId !== location.LocationId) {
-      setSelectedLocation(location);
-    }
-  };  
+    setSelectedLocation({ ...location }); // Spread to ensure a new object reference
+    console.log("Selected Location Updated:", location);
+  };
+   
   
-
   // Function to POST/CREATE a brand new Location into Location DB
   const addLocation = async () => {
     try {
@@ -199,7 +199,7 @@ const LocationScreen = () => {
   
 
   // function to schedule the photoshoots
-  const schedulePhotoshoot = async (location) => {
+  const schedulePhotoshoot = async (location: Location) => {
     console.log("schedulePhotoshoot function is hit");
   
     if (!location || !location.LocationId) {
@@ -256,7 +256,13 @@ const LocationScreen = () => {
     setShowTitle(true); // Show title again when cancel button is pressed
   };
 
+  useEffect(() => {
+    console.log("Updated selectedLocation:", selectedLocation);
+  }, [selectedLocation]);
+  
+
   return (
+    console.log("Rendering Component with selectedLocation:", selectedLocation),
       <View style={styles.container}>
         {/* Main Content */}
         <View style={styles.content}>
@@ -282,26 +288,32 @@ const LocationScreen = () => {
   
 
         {/* Map View */}
-        <MapView style={styles.map} region={region}>
-          
+        <MapView
+          style={styles.map}
+          region={region}
+          onPress={(e) => {
+            if (e.nativeEvent.action === "marker-press") return; // Skip when clicking on a marker
+            setSelectedLocation(null); // Clear selection when clicking anywhere else
+          }}
+        >
+
           {/* User selected location marker */}
           {marker && <Marker coordinate={marker} title="Selected Location" />}
-        
+          
           {/* Saved Locations - Green Markers */}
           {locations.map((location) =>
             location.latitude && location.longitude ? (
               <Marker
                 key={`${location.latitude}-${location.longitude}`}
                 coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                title={location.location_name || "Saved Location"}
-                onPress={() => handleMarkerPress(location)} // Use optimized handler
+                title={location.location_name} // Always show the name
+                onPress={() => handleMarkerPress(location)}
                 pinColor="green"
               />
             ) : null
           )}
         </MapView>
 
-        
 
         {/* Show Schedule Photoshoot Button When a Location is Selected */}
         {selectedLocation && (
@@ -342,7 +354,6 @@ const LocationScreen = () => {
             </TouchableOpacity>
           </View>
         )}
-
 
         {/* Floating Schedule Photoshoot Button */}
         <TouchableOpacity 
