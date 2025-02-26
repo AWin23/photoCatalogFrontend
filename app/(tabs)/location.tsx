@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Button, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TextInput, Button, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons'; // Import icons for the Plus Button
@@ -8,18 +8,26 @@ import { ThemedView } from '@/components/ThemedView';
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
-const API_URL = "http://{replace with your IP}:8000/api/location/"; // Change this if deployed
-const BASE_API_URL = "http://{replace with your IP}:8000/api/"; // change this if reployed
+const API_URL = "http://{replace with your IP Address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
+const BASE_API_URL = "http://{replace with your IP Address}:8000/api/"; // change this if reployed (replace first part with your real IP)
+const BASE_URL = "http://{replace with your IP Address}:8000/"; // replace first part with your real IP
 
 
 // type data for the Locations model
 type Location = {
   LocationId: number;
-  LocationName: string;
+  location_name: string;
   Address: string;
   latitude: number;
   longitude: number;
 };
+
+// type data for the Photoshoots Model
+interface Photoshoot {
+  PhotoshootId: number;
+  LocationId: number; 
+  Date: string;
+}
 
 const LocationScreen = () => {
 
@@ -41,36 +49,60 @@ const LocationScreen = () => {
   const [showInput, setShowInput] = useState(false); // Controls visibility of input
   const [isLocationFound, setIsLocationFound] = useState(false); // Track if location is found
   const [showTitle, setShowTitle] = useState(true);  // State for managing title visibility
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null); // Store selected location
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
 
   // function to fetch stored Locations
   const fetchLocation = async () => {
-    setLoading(true); // Ensures that loading is true when fetching new Locations data
+    console.log("Fetching location...");
+    setLoading(true);
     try {
       console.log("Fetching from: ", API_URL);
-      const response = await fetch(API_URL); // awaits the fetched data from the URL
+      const response = await fetch(API_URL);
       console.log("Response Status:", response.status);
-
+  
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
+  
       const data: Location[] = await response.json();
       console.log("Fetched Data:", data);
-
-      // Ensures that Location array has valid objects, and handle null or undefined values
-      const validLocation = data.map(location => ({
+  
+      if (data.length === 0) {
+        console.warn("No locations returned from API.");
+      }
+  
+      const validLocations = data.map(location => ({
         ...location,
-        LocationName: location.LocationName || 'No LocationName',
-      })) 
-
-      setLocations(validLocation); // sets the processsed data
-     } catch (err: any) {
+        LocationName: location.location_name || 'No LocationName',
+      }));
+  
+      setLocations(validLocations);
+      setDataLoaded(prev => !prev);  // 🔥 Ensures UI re-renders
+    } catch (err: any) {
       console.error("Fetch Error:", err);
       setError(err.message);
-     } finally {
-      setRefreshing(false);
-     }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
 
-  }
+  // Fetch locations on mount
+  useEffect(() => {
+    fetchLocation();
+  }, []); // Runs only once when the component mounts
+
+  // Update the UI when locations change
+  useEffect(() => {
+    if (locations.length > 0) {
+      console.log("Updating map after fetching locations...");
+      setDataLoaded(prev => !prev); // Forces UI update
+    }
+  }, [locations]); // Runs when `locations` updates
+  
 
   // function to fetch from the Google GeoCoding API to convert Addresses into Longitude and Latitude
   const fetchAndPostCoordinates = async () => {
@@ -103,32 +135,19 @@ const LocationScreen = () => {
   };
 
   // function to handle the marker press
-  const handleMarkerPress = async (locationId: number) => {
-    try {
-
-      // Ensure no trailing slash before the endpoint
-      const cleanUrl = `${BASE_API_URL}photoshoots?locationID=${locationId}`;
-      
-      const response = await axios.get(cleanUrl);
-    
-      if (response.data.length === 0) {
-        alert("No photoshoots found at this location.");
-      } else {
-        console.log("Photoshoots:", response.data);
-        alert(`Photoshoots scheduled here:\n${response.data.map(p => `• ${p.Date}`).join("\n")}`);
-      }
-    } catch (error) {
-      console.error("Error fetching photoshoots:", error);
-      alert("Failed to fetch photoshoots.");
+  const handleMarkerPress = (location: Location) => {
+    console.log("Marker Pressed: ", location);
+    if (selectedLocation?.LocationId !== location.LocationId) {
+      setSelectedLocation(location);
     }
-  };
+  };  
   
 
   // Function to POST/CREATE a brand new Location into Location DB
   const addLocation = async () => {
     try {
       const locationName = address; // Use the address for location name
-      await axios.post("http://{replace with your IP}:8000/api/location/create/", 
+      await axios.post(`${BASE_URL}/api/location/create/`, 
         {
           address: address,
           latitude: marker.latitude,
@@ -152,33 +171,76 @@ const LocationScreen = () => {
     }
   };
 
+  // function to delete location 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteLocation = async (locationId: number) => {
+    try {
+      setIsDeleting(true); // Prevent interactions
+      setSelectedLocation(null); // Immediately clear selection UI
+  
+      const response = await fetch(`${API_URL}${locationId}`, {
+        method: 'DELETE',
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to delete location: ${response.status}`);
+      }
+  
+      setLocations(prevLocations => prevLocations.filter(loc => loc.LocationId !== locationId));
+      console.log("Location Successfully Deleted: " + response);
+    } catch (error) {
+      console.error("Delete Error:", error);
+      setError(error.message);
+    } finally {
+      setIsDeleting(false); // Allow interactions again
+    }
+  };
+  
+  
+
   // function to schedule the photoshoots
-  const schedulePhotoshoot = async () => {
-    if (!marker) {
-      alert("Please select a location first!");
+  const schedulePhotoshoot = async (location) => {
+    console.log("schedulePhotoshoot function is hit");
+  
+    if (!location || !location.LocationId) {
+      alert("Please select a saved location to schedule a photoshoot.");
       return;
     }
+  
+    console.log("Selected Location:", location);
   
     const date = prompt("Enter date for photoshoot (YYYY-MM-DD):");
     if (!date) return;
   
+    const formattedDate = `${date}T00:00:00Z`; // Ensure proper datetime format
+  
+    const requestData = {
+      Date: formattedDate,
+      LocationId: location.LocationId, // Ensure we're using a valid existing location
+    };
+  
+    console.log("Sending POST request to:", `${API_URL}/photoshoots/create/`);
+    console.log("Request Data:", requestData);
+  
     try {
-      await axios.post(`${API_URL}/photoshoot/create/`, {
-        Date: date,
+      const response = await axios.post(`${API_URL}/photoshoots/create/`, requestData, {
+        headers: { "Content-Type": "application/json" },
       });
   
+      console.log("Response Data:", response.data);
       alert("Photoshoot scheduled successfully!");
     } catch (error) {
       console.error("Error scheduling photoshoot:", error);
+  
+      if (error.response) {
+        console.error("Error Response Data:", error.response.data);
+        console.error("Error Response Status:", error.response.status);
+      }
+  
       alert("Failed to schedule photoshoot.");
     }
   };
   
-
-  // Calls the fetchLocation inititally and on refresh
-  useEffect(() => {
-    fetchLocation();
-  }, [])
 
   const cancelAction = () => {
     setShowInput(false);
@@ -218,25 +280,42 @@ const LocationScreen = () => {
           </View>
         )}
   
+
         {/* Map View */}
         <MapView style={styles.map} region={region}>
           
           {/* User selected location marker */}
           {marker && <Marker coordinate={marker} title="Selected Location" />}
-         
+        
           {/* Saved Locations - Green Markers */}
-          {locations.map((location) => 
+          {locations.map((location) =>
             location.latitude && location.longitude ? (
               <Marker
-                key={`${location.latitude}-${location.longitude}`} // Create a unique key from latitude and longitude
+                key={`${location.latitude}-${location.longitude}`}
                 coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                title={location.LocationName || "Saved Location"}
-                onPress={() => handleMarkerPress(location.LocationId)}
+                title={location.location_name || "Saved Location"}
+                onPress={() => handleMarkerPress(location)} // Use optimized handler
                 pinColor="green"
               />
             ) : null
           )}
         </MapView>
+
+        
+
+        {/* Show Schedule Photoshoot Button When a Location is Selected */}
+        {selectedLocation && (
+          <View style={{ position: "absolute", bottom: 20, alignSelf: "center" }}>
+            <Button
+              title="Schedule Photoshoot"
+              onPress={() => {
+                schedulePhotoshoot(selectedLocation); // Call function
+                setSelectedLocation(null); // Reset after scheduling
+              }}
+              color="blue"
+            />
+          </View>
+        )}
   
         {/* Show Add Location or Cancel button when location is found */}
         {isLocationFound && (
@@ -246,13 +325,39 @@ const LocationScreen = () => {
               onPress={addLocation}
               color="#28a745" // Green button for adding location
             />
-            <Button
-              title="Cancel"
-              onPress={cancelAction}
-              color="#dc3545" // Red button for canceling the action
-            />
+
           </View>
         )}
+
+        {/* Delete Location Physically after selecting a green marker*/}
+        {selectedLocation && locations.some(loc => loc.LocationId === selectedLocation.LocationId) && (
+          <View style={styles.deleteButtonContainer}>
+            <ThemedText style={styles.deleteButtonText}>{selectedLocation.location_name}</ThemedText>
+            <TouchableOpacity 
+              style={styles.deleteButton} 
+              onPress={() => deleteLocation(selectedLocation.LocationId)}
+              disabled={isDeleting} // Disable delete button while deleting
+            >
+              <ThemedText style={styles.deleteButtonText}>Delete</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+
+
+        {/* Floating Schedule Photoshoot Button */}
+        <TouchableOpacity 
+          style={styles.scheduleButton} 
+          onPress={() => {
+            if (selectedLocation) {
+              schedulePhotoshoot(selectedLocation);
+              setSelectedLocation(null); // Reset after scheduling
+            } else {
+              Alert.alert("No Location Selected", "Please tap on a green marker to choose a location.");
+            }
+          }}
+        >
+          <Ionicons name="calendar" size={30} color="white" />
+        </TouchableOpacity>
 
         <Button title="Schedule Photoshoot" onPress={schedulePhotoshoot} />
 
@@ -362,5 +467,41 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 3 },
+  },
+  scheduleButton: {
+    position: 'absolute',
+    bottom: 150, // Slightly above the blue add button
+    right: 20,
+    backgroundColor: '#FFC107', // Yellow for contrast
+    width: 50,
+    height: 50,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5, // Shadow for Android
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  deleteButtonContainer: {
+    position: 'absolute',
+    bottom: 80,
+    alignSelf: 'center',
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  deleteButton: {
+    backgroundColor: 'red',
+    padding: 10,
+    borderRadius: 5,
+  },
+  deleteButtonText: {
+    color: 'black',
+    fontWeight: 'bold',
   },
 });
