@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Button, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, TextInput, Button, TouchableOpacity, Alert, Animated } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons'; // Import icons for the Plus Button
@@ -8,9 +8,9 @@ import { ThemedView } from '@/components/ThemedView';
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
-const API_URL = "http://{replace with your IP address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
-const BASE_API_URL = "http://{replace with your IP address}:8000/api/"; // change this if reployed (replace first part with your real IP)
-const BASE_URL = "http://{replace with your IP address}4:8000/"; // replace first part with your real IP
+const API_URL = "http://{replace with your IP Address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
+const BASE_API_URL = "http://{replace with your IP Address}:8000/api/"; // change this if reployed (replace first part with your real IP)
+const BASE_URL = "http://{replace with your IP Address}:8000/"; // replace first part with your real IP
 
 
 // type data for the Locations model
@@ -52,6 +52,29 @@ const LocationScreen = () => {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null); // Store selected location
   const [showConfirm, setShowConfirm] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [buttonVisible, setButtonVisible] = useState(false);
+  const [date, setDate] = useState(''); // controls the state of the date input for photoshoot scheduling
+  const [isDateInputEnabled, setIsDateInputEnabled] = useState(false); // Control the date input field
+
+
+  const slideAnim = useState(new Animated.Value(100))[0]; // Animated value for bottom position
+
+  useEffect(() => {
+    if (selectedLocation) {
+      // Animate button to pop up from the bottom when a location is selected
+      setButtonVisible(true);
+      Animated.spring(slideAnim, {
+        toValue: 0, // Move button into view
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Animate button out of view when no location is selected
+      Animated.spring(slideAnim, {
+        toValue: 100, // Hide the button
+        useNativeDriver: true,
+      }).start(() => setButtonVisible(false)); // Optionally reset visibility after animation
+    }
+  }, [selectedLocation]);
 
 
   // function to fetch stored Locations
@@ -68,7 +91,6 @@ const LocationScreen = () => {
       }
   
       const data: Location[] = await response.json();
-      console.log("Fetched Data:", data);
   
       if (data.length === 0) {
         console.warn("No locations returned from API.");
@@ -98,7 +120,6 @@ const LocationScreen = () => {
   // Update the UI when locations change
   useEffect(() => {
     if (locations.length > 0) {
-      console.log("Updating map after fetching locations...");
       setDataLoaded(prev => !prev); // Forces UI update
     }
   }, [locations]); // Runs when `locations` updates
@@ -124,6 +145,7 @@ const LocationScreen = () => {
 
         setMarker({ latitude: location.lat, longitude: location.lng });
         setIsLocationFound(true); // Set to true when location is found
+        setSelectedLocation(null); // means location is supposed to disappear when the find location is toggled
       } else {
         alert("Address not found");
       }
@@ -135,11 +157,9 @@ const LocationScreen = () => {
   };
 
   // function to handle the marker press
-  console.log("Checking delete button condition:", selectedLocation, locations.some(loc => loc.LocationId === selectedLocation?.LocationId));
   const handleMarkerPress = (location: Location) => {
-    console.log("Marker Pressed: ", location);
     setSelectedLocation({ ...location }); // Spread to ensure a new object reference
-    console.log("Selected Location Updated:", location);
+    setIsDateInputEnabled(true); // Enable the date input once a location is selected
   };
    
   
@@ -204,13 +224,18 @@ const LocationScreen = () => {
   
     if (!location || !location.LocationId) {
       alert("Please select a saved location to schedule a photoshoot.");
+      console.error("Error: location or LocationId is missing", location);
       return;
     }
   
     console.log("Selected Location:", location);
+    console.log("Location ID: " + location.LocationId);
   
-    const date = prompt("Enter date for photoshoot (YYYY-MM-DD):");
-    if (!date) return;
+    if (!date) {
+      alert("Please enter a date for the photoshoot.");
+      console.error("Error: Date is missing.");
+      return;
+    }
   
     const formattedDate = `${date}T00:00:00Z`; // Ensure proper datetime format
   
@@ -219,16 +244,24 @@ const LocationScreen = () => {
       LocationId: location.LocationId, // Ensure we're using a valid existing location
     };
   
-    console.log("Sending POST request to:", `${API_URL}/photoshoots/create/`);
-    console.log("Request Data:", requestData);
+    console.log("Sending request with:", requestData);
   
     try {
-      const response = await axios.post(`${API_URL}/photoshoots/create/`, requestData, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await axios.post(
+        `${BASE_API_URL}photoshoots/create/`,
+        requestData, // Make sure this is correctly structured
+        {
+          headers: {
+            "Content-Type": "application/json", // Ensure JSON format
+          },
+        }
+      );
   
       console.log("Response Data:", response.data);
       alert("Photoshoot scheduled successfully!");
+      setIsDateInputEnabled(false); // Clear the date input once a location is selected
+      setDate(''); // Clear the address field
+
     } catch (error) {
       console.error("Error scheduling photoshoot:", error);
   
@@ -240,6 +273,8 @@ const LocationScreen = () => {
       alert("Failed to schedule photoshoot.");
     }
   };
+  
+  
   
 
   const cancelAction = () => {
@@ -256,13 +291,7 @@ const LocationScreen = () => {
     setShowTitle(true); // Show title again when cancel button is pressed
   };
 
-  useEffect(() => {
-    console.log("Updated selectedLocation:", selectedLocation);
-  }, [selectedLocation]);
-  
-
   return (
-    console.log("Rendering Component with selectedLocation:", selectedLocation),
       <View style={styles.container}>
         {/* Main Content */}
         <View style={styles.content}>
@@ -314,21 +343,6 @@ const LocationScreen = () => {
           )}
         </MapView>
 
-
-        {/* Show Schedule Photoshoot Button When a Location is Selected */}
-        {selectedLocation && (
-          <View style={{ position: "absolute", bottom: 20, alignSelf: "center" }}>
-            <Button
-              title="Schedule Photoshoot"
-              onPress={() => {
-                schedulePhotoshoot(selectedLocation); // Call function
-                setSelectedLocation(null); // Reset after scheduling
-              }}
-              color="blue"
-            />
-          </View>
-        )}
-  
         {/* Show Add Location or Cancel button when location is found */}
         {isLocationFound && (
           <View style={styles.buttonContainer}>
@@ -355,22 +369,39 @@ const LocationScreen = () => {
           </View>
         )}
 
-        {/* Floating Schedule Photoshoot Button */}
-        <TouchableOpacity 
-          style={styles.scheduleButton} 
+      {/* Date Input, positioned near bottom when a green marker is selected */}
+        {isDateInputEnabled && selectedLocation && (
+          <View style={styles.dateInputContainer}>
+            <TextInput
+              style={styles.photoshootInput}
+              placeholder="Enter Date for Photoshoot (YYYY-MM-DD)"
+              value={date}
+              onChangeText={setDate}
+              keyboardType="default"
+              placeholderTextColor="#bbb" // Subtle placeholder text
+            />
+              <Button
+              title="Add Photoshoot?"
+              onPress={() => schedulePhotoshoot(selectedLocation)}
+              color="#FFC107" // Green button for adding location
+            />
+          </View>
+        )}
+
+
+      {/* Floating Schedule Photoshoot Button */}
+        <TouchableOpacity
+          style={styles.scheduleButton}
           onPress={() => {
-            if (selectedLocation) {
+            if (selectedLocation && date) {
               schedulePhotoshoot(selectedLocation);
-              setSelectedLocation(null); // Reset after scheduling
             } else {
-              Alert.alert("No Location Selected", "Please tap on a green marker to choose a location.");
+              Alert.alert("Missing Information", "Please select a location and enter a date.");
             }
           }}
         >
-          <Ionicons name="calendar" size={30} color="white" />
-        </TouchableOpacity>
-
-        <Button title="Schedule Photoshoot" onPress={schedulePhotoshoot} />
+        <Ionicons name="calendar" size={30} color="white" />
+      </TouchableOpacity>
 
         {/* Floating + Button */}
         {!showInput && !isLocationFound && (
@@ -443,6 +474,30 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 5,
     color: 'white',
+  },
+  photoshootInput: {
+    height: 50,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+    color: 'white',
+    fontSize: 12,
+  },
+  /* Date Input Positioned Near Bottom */
+  dateInputContainer: {
+    position: 'absolute',
+    top: 160, // Places input near the buttons
+    left: 10,
+    right: 20,
+    width: '100%',
+    backgroundColor: '#2a2a2a', // Dark modern background
+    padding: 10,
+    elevation: 5, // Shadow effect
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 3 },
   },
   buttonContainer: {
     flexDirection: 'row',
