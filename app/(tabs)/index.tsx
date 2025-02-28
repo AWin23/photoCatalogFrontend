@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/ThemedView';
 
 import { LinearGradient } from 'expo-linear-gradient';
 
-
-const API_URL = "http://{replace with your IP}:8000/api/photo/"; // Change this if deployed
+const PHOTO_API_URL = "http://{replace with your IP}:8000/api/photo/"; // Change this if deployed
+const BASE_URL = "http://{replace with your IP}:8000/"; // replace first part with your real IP
 
 type Photo = {
   PhotoID: number;
@@ -26,8 +26,8 @@ export default function HomeScreen({ }) {
       const fetchPhotos = async () => {
         setLoading(true);  // Ensure loading is true when fetching data
         try {
-          console.log("Fetching from: ", API_URL);
-          const response = await fetch(API_URL);
+          console.log("Fetching from: ", PHOTO_API_URL);
+          const response = await fetch(PHOTO_API_URL);
           console.log("Response Status:", response.status);
           if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status}`);
@@ -90,7 +90,7 @@ export default function HomeScreen({ }) {
             renderItem={({ item }) => (
               <View style={styles.photoCard}>
                 {item.FileName ? (
-                  <Image source={{ uri: `http://{replace with your IP}:8000/api${item.ImagePath}` }} style={styles.photo} />
+                  <Image source={{ uri: `${BASE_URL}api${item.ImagePath}` }} style={styles.photo} />
                 ) : (
                   <Text style={styles.placeholder}>No Image</Text>
                 )}

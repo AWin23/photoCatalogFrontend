@@ -9,8 +9,6 @@ import { format } from 'date-fns';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-
-
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
 const API_URL = "http://{replace with your IP}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
 const BASE_API_URL = "http://{replace with your IP}:8000/api/"; // change this if reployed (replace first part with your real IP)

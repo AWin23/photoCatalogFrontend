@@ -6,6 +6,8 @@ import { ThemedText } from '@/components/ThemedText';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from "expo-image-manipulator"; // Import ImageManipulator
 
+const PHOTO_API_URL = "http://{replace with your IP}:8000/api/photo/"; // change this if reployed (replace first part with your real IP)
+
 
 export default function PhotoUpload() {
   const [image, setImage] = useState<string | null>(null); // State to hold the selected image
@@ -43,7 +45,7 @@ const uploadImage = async (uri: string) => {
     console.log("FormData created. Sending request...");
     console.log("Jpeg URI:", jpegUri);
 
-    const uploadResponse = await fetch("http://{replace with your IP}:8000/api/photo/create/", {
+    const uploadResponse = await fetch(`${PHOTO_API_URL}create/`, {
       method: "POST",
       headers: {}, // No Content-Type, let the browser handle it
       body: formData,

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { TextInput, View, Text, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 
+const PHOTO_API_URL = "http://{replace with your IP}:8000/api/photo/"; // change this if reployed (replace first part with your real IP)
+
+
 const PhotoDelete = () => {
   const [photoID, setPhotoID] = useState<string>(''); // Ensure photoID is always a string
   const [message, setMessage] = useState<string>('');
@@ -10,7 +13,7 @@ const PhotoDelete = () => {
   // Function to fetch the photo data
   const fetchPhotos = async () => {
     try {
-      const response = await fetch('http://{replace with your IP}:8000/api/photo'); // Adjust the URL to your API endpoint
+      const response = await fetch(`${PHOTO_API_URL}`); // Adjust the URL to your API endpoint
       if (response.ok) {
         const data = await response.json();
         setFetchedData(data); // Store the fetched data in the state
@@ -42,11 +45,11 @@ const PhotoDelete = () => {
     console.log("Current ParsedPhotoID: " + parsedPhotoID);
     
     try {
-        const response = await fetch(`http://{replace with your IP}:8000/api/photo/${parsedPhotoID}`, {
+        const response = await fetch(`${PHOTO_API_URL}${parsedPhotoID}`, {
             method: 'DELETE',
         });
         
-        console.log(`Current Delete URL: http://{replace with your IP}:8000/api/photo/${parsedPhotoID}`);
+        console.log(`Current Delete URL: ${PHOTO_API_URL}${parsedPhotoID}`);
 
       if (response.ok) {
         setMessage('Photo deleted successfully');
