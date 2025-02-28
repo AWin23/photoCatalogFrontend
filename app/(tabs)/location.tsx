@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Button, TouchableOpacity, Alert, Animated } from 'react-native';
+import { StyleSheet, View, TextInput, Button, TouchableOpacity, Alert, Animated, Text, FlatList, ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons'; // Import icons for the Plus Button
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { format } from 'date-fns';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
-const API_URL = "http://{replace with your IP Address}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
-const BASE_API_URL = "http://{replace with your IP Address}:8000/api/"; // change this if reployed (replace first part with your real IP)
-const BASE_URL = "http://{replace with your IP Address}:8000/"; // replace first part with your real IP
+const API_URL = "http://{replace with your IP}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
+const BASE_API_URL = "http://{replace with your IP}:8000/api/"; // change this if reployed (replace first part with your real IP)
+const BASE_URL = "http://{replace with your IP}:8000/"; // replace first part with your real IP
 
 
 // type data for the Locations model
@@ -55,6 +59,8 @@ const LocationScreen = () => {
   const [buttonVisible, setButtonVisible] = useState(false);
   const [date, setDate] = useState(''); // controls the state of the date input for photoshoot scheduling
   const [isDateInputEnabled, setIsDateInputEnabled] = useState(false); // Control the date input field
+  const [photoshoots, setPhotoshoots] = useState<Photoshoot[]>([]); // manages state of photoshoots
+  const [isAddButtonVisible, setIsAddButtonVisible] = useState(true); // Initially, the Add button is visible
 
 
   const slideAnim = useState(new Animated.Value(100))[0]; // Animated value for bottom position
@@ -160,6 +166,11 @@ const LocationScreen = () => {
   const handleMarkerPress = (location: Location) => {
     setSelectedLocation({ ...location }); // Spread to ensure a new object reference
     setIsDateInputEnabled(true); // Enable the date input once a location is selected
+    setShowTitle(false); // Hide the title when selecting a green marker
+    setIsAddButtonVisible(false); // Hide the Add button when a green marker is clicked
+
+    // call photoshoots upon clicking
+  fetchPhotoshoots(location.LocationId); // Assuming location has an `id` property
   };
    
   
@@ -183,6 +194,8 @@ const LocationScreen = () => {
       alert("Location saved successfully!");
       setIsLocationFound(true); // Set state to show the "Add Location" button
       setAddress(''); // Clear the address field
+      //setShowTitle(true); // shows the title after the show the 
+      fetchLocation(); // fetches the location to update the Map after. 
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to save location");
@@ -197,6 +210,13 @@ const LocationScreen = () => {
     try {
       setIsDeleting(true); // Prevent interactions
       setSelectedLocation(null); // Immediately clear selection UI
+
+      // Find the location you're going to delete
+      const locationToDelete = locations.find(loc => loc.LocationId === locationId);
+    
+      if (!locationToDelete) {
+        throw new Error("Location not found");
+      }
   
       const response = await fetch(`${API_URL}${locationId}`, {
         method: 'DELETE',
@@ -206,8 +226,14 @@ const LocationScreen = () => {
         throw new Error(`Failed to delete location: ${response.status}`);
       }
   
+      // removes location from the state
       setLocations(prevLocations => prevLocations.filter(loc => loc.LocationId !== locationId));
-      console.log("Location Successfully Deleted: " + response);
+
+      // Show location name in the alert
+      alert(`Location Successfully Deleted: ${locationToDelete.location_name}`);
+
+      setShowTitle(true); // shows the head title again after you delete the location
+      setIsAddButtonVisible(true); // shows the add button again after location deletion 
     } catch (error) {
       console.error("Delete Error:", error);
       setError(error.message);
@@ -215,8 +241,54 @@ const LocationScreen = () => {
       setIsDeleting(false); // Allow interactions again
     }
   };
-  
-  
+
+  // function to bring the alert for the warning message before deleting a photoshoot
+  // at the specific location
+  const handleDeleteConfirmation = (photoshootId: number) => {
+    Alert.alert(
+        "Delete Photoshoot",
+        "Are you sure you want to delete this photoshoot?",
+        [
+            { text: "Cancel", style: "cancel" },
+            { 
+                text: "Delete", 
+                onPress: () => deletePhotoshoot(photoshootId),
+                style: "destructive"
+            }
+        ]
+    );
+};
+
+
+  // function to delete Photoshoots at Specific Locations
+  const deletePhotoshoot = async (photoshootId: number) => {
+    try {
+        const response = await fetch(`${BASE_API_URL}photoshoots/${photoshootId}/`, { 
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            console.error("Error deleting photoshoot:", await response.json());
+            return;
+        }
+
+        Alert.alert("Deleted", "Photoshoot has been removed successfully.");
+        
+        // Remove the deleted photoshoot from state
+        setPhotoshoots((prev) => prev.filter(photo => photo.id !== photoshootId));
+
+        // Check if selectedLocation is not null before calling fetchPhotoshoots
+        if (selectedLocation) {
+            fetchPhotoshoots(selectedLocation.LocationId);  // Re-fetch the photoshoots
+        } else {
+            console.error("Selected location is null, cannot fetch photoshoots.");
+        }
+    } catch (error) {
+        console.error("Error deleting photoshoot:", error);
+    }
+};
+
+
 
   // function to schedule the photoshoots
   const schedulePhotoshoot = async (location: Location) => {
@@ -262,6 +334,13 @@ const LocationScreen = () => {
       setIsDateInputEnabled(false); // Clear the date input once a location is selected
       setDate(''); // Clear the address field
 
+      // Check if selectedLocation is not null before calling fetchPhotoshoots
+      if (selectedLocation) {
+        fetchPhotoshoots(selectedLocation.LocationId);  // Re-fetch the photoshoots
+      } else {
+        console.error("Selected location is null, cannot fetch photoshoots.");
+      }
+
     } catch (error) {
       console.error("Error scheduling photoshoot:", error);
   
@@ -273,10 +352,36 @@ const LocationScreen = () => {
       alert("Failed to schedule photoshoot.");
     }
   };
+
+  // fetches the photoshoots 
+  const fetchPhotoshoots = async (locationId: number) => {
+    try {
+      const response = await fetch(`${BASE_API_URL}photoshoots?locationId=${locationId}`);
+      console.log("URL: ", `${BASE_API_URL}photoshoots?locationId=${locationId}`);  // Log the URL
   
+      if (!response.ok) {
+        console.error("Network response was not ok", response);
+        return;
+      }
   
+      const data = await response.json();
+      console.log("Fetched Photoshoots data:", data);  // Log the response data
+  
+      if (Array.isArray(data)) {
+        setPhotoshoots([...data]); // Spread operator forces re-render
+      } else {
+        console.error("Fetched data is not an array:", data);
+      }
+    } catch (error) {
+      console.error('Error fetching photoshoots:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+    
   
 
+  // function to handle cancelling the action of adding a location 
   const cancelAction = () => {
     setShowInput(false);
     setAddress('');
@@ -292,138 +397,161 @@ const LocationScreen = () => {
   };
 
   return (
-      <View style={styles.container}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+    <View style={styles.container}>
         {/* Main Content */}
         <View style={styles.content}>
-        {/* Conditionally render title based on showTitle */}
-        {showTitle && (
-          <ThemedView style={styles.titleContainer}>
-            <ThemedText type="title">View and Submit Photoshoot Locations📍</ThemedText>
-          </ThemedView>
-        )}
+            {/* Conditionally render title */}
+            {showTitle && (
+                <ThemedView style={styles.titleContainer}>
+                    <ThemedText type="title">View and Submit Photoshoot Locations📍</ThemedText>
+                </ThemedView>
+            )}
 
-        {/* Show Input Bar Only When "Plus" Button is Clicked and Location hasn't been found */}
-        {showInput && !isLocationFound && (
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter address (Include City, State, and Zipcode)"
-              value={address}
-              onChangeText={setAddress}
-            />
-            <Button title="Find Location" onPress={fetchAndPostCoordinates} />
-          </View>
-        )}
-  
+            {/* Show Input Bar Only When "Plus" Button is Clicked */}
+            {showInput && !isLocationFound && (
+                <View style={styles.inputContainer}>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Enter address (Include City, State, and Zipcode)"
+                        value={address}
+                        onChangeText={setAddress}
+                    />
+                    <Button title="Find Location" onPress={fetchAndPostCoordinates} />
+                </View>
+            )}
 
-        {/* Map View */}
-        <MapView
-          style={styles.map}
-          region={region}
-          onPress={(e) => {
-            if (e.nativeEvent.action === "marker-press") return; // Skip when clicking on a marker
-            setSelectedLocation(null); // Clear selection when clicking anywhere else
-          }}
-        >
-
-          {/* User selected location marker */}
-          {marker && <Marker coordinate={marker} title="Selected Location" />}
-          
-          {/* Saved Locations - Green Markers */}
-          {locations.map((location) =>
-            location.latitude && location.longitude ? (
-              <Marker
-                key={`${location.latitude}-${location.longitude}`}
-                coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                title={location.location_name} // Always show the name
-                onPress={() => handleMarkerPress(location)}
-                pinColor="green"
-              />
-            ) : null
-          )}
-        </MapView>
-
-        {/* Show Add Location or Cancel button when location is found */}
-        {isLocationFound && (
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Add Location?"
-              onPress={addLocation}
-              color="#28a745" // Green button for adding location
-            />
-
-          </View>
-        )}
-
-        {/* Delete Location Physically after selecting a green marker*/}
-        {selectedLocation && locations.some(loc => loc.LocationId === selectedLocation.LocationId) && (
-          <View style={styles.deleteButtonContainer}>
-            <ThemedText style={styles.deleteButtonText}>{selectedLocation.location_name}</ThemedText>
-            <TouchableOpacity 
-              style={styles.deleteButton} 
-              onPress={() => deleteLocation(selectedLocation.LocationId)}
-              disabled={isDeleting} // Disable delete button while deleting
+            {/* Map View */}
+            <MapView
+                style={styles.map}
+                region={region}
+                onPress={(e) => {
+                    if (e.nativeEvent.action === "marker-press") return;
+                    setSelectedLocation(null);
+                    setIsAddButtonVisible(true); // Show the Add button again
+                    setShowTitle(true); // shwos the title again 
+                }}
             >
-              <ThemedText style={styles.deleteButtonText}>Delete</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
+                {/* User-selected location marker */}
+                {marker && <Marker coordinate={marker} title="Selected Location" />}
 
-      {/* Date Input, positioned near bottom when a green marker is selected */}
-        {isDateInputEnabled && selectedLocation && (
-          <View style={styles.dateInputContainer}>
-            <TextInput
-              style={styles.photoshootInput}
-              placeholder="Enter Date for Photoshoot (YYYY-MM-DD)"
-              value={date}
-              onChangeText={setDate}
-              keyboardType="default"
-              placeholderTextColor="#bbb" // Subtle placeholder text
-            />
-              <Button
-              title="Add Photoshoot?"
-              onPress={() => schedulePhotoshoot(selectedLocation)}
-              color="#FFC107" // Green button for adding location
-            />
-          </View>
-        )}
+                {/* Saved Locations - Green Markers */}
+                {locations.map((location) =>
+                    location.latitude && location.longitude ? (
+                        <Marker
+                            key={`${location.latitude}-${location.longitude}`}
+                            coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+                            title={location.location_name}
+                            onPress={() => handleMarkerPress(location)}
+                            pinColor="green"
+                        />
+                    ) : null
+                )}
+            </MapView>
+
+            {/* Add Location or Cancel button when location is found */}
+            {isLocationFound && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.addLocationButton} onPress={addLocation}>
+                  <Text style={styles.addLocationButtonText}>Add Location?</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
 
-      {/* Floating Schedule Photoshoot Button */}
-        <TouchableOpacity
-          style={styles.scheduleButton}
-          onPress={() => {
-            if (selectedLocation && date) {
-              schedulePhotoshoot(selectedLocation);
-            } else {
-              Alert.alert("Missing Information", "Please select a location and enter a date.");
-            }
-          }}
-        >
-        <Ionicons name="calendar" size={30} color="white" />
-      </TouchableOpacity>
+            {/* Photoshoots List - Appears Below the Selected Green Marker */}
+            {selectedLocation && (
+              <View style={styles.photoshootContainer}>
+                <Text style={styles.photoshootTitle}>📸 {selectedLocation.location_name} - Photoshoots:</Text>
+                
+                {loading ? (
+                  <ActivityIndicator size="large" color="#FFC107" />
+                ) : (
+                  <>
+                    {/* If there are no photoshoots, display a message */}
+                    {photoshoots.length === 0 ? (
+                      <Text style={styles.noPhotoshootsMessage}>No photoshoots available at this location.</Text>
+                    ) : (
+                      <FlatList
+                        data={photoshoots}
+                        keyExtractor={(item) => item.PhotoshootId.toString()}
+                        renderItem={({ item }) => (
+                          <Swipeable
+                            renderRightActions={() => (
+                              <TouchableOpacity 
+                                style={styles.deletePhotoshootButton}
+                                onPress={() => handleDeleteConfirmation(item.PhotoshootId)}
+                                >
+                              </TouchableOpacity>
+                            )}
+                            >
+                            <TouchableOpacity 
+                              onPress={() => fetchPhotoshoots(selectedLocation.LocationId)}  // Fetch photoshoots on press
+                              style={styles.photoshootItem}
+                            >
+                              <Text style={styles.photoshootDate}>📅 {format(new Date(item.Date), 'PPPP')}</Text>
+                              <Text style={styles.deleteButtonText} onPress={() => handleDeleteConfirmation(item.PhotoshootId)}>Delete</Text>
+                            </TouchableOpacity>
+                          </Swipeable>
+                        )}
+                      />
+                    )}
+                  </>
+                )}
+              </View>
+            )}
 
-        {/* Floating + Button */}
-        {!showInput && !isLocationFound && (
-          <TouchableOpacity 
-            style={styles.addButton} 
-            onPress={() => setShowInput(true)} // Show the input field
-          >
-            <Ionicons name="add" size={30} color="white" />
-          </TouchableOpacity>
-        )}
 
-        {/* New Floating "X" Button (Closes Input UI) */}
-        {showInput && (
-          <TouchableOpacity 
-            style={styles.cancelButton} 
-            onPress={cancelAction}
-          >
-            <Ionicons name="close" size={30} color="white" />
-          </TouchableOpacity>
-        )}
-      </View>
-      </View>
+            {/* Delete Location Button - Only When Selecting a Green Marker */}
+            {selectedLocation && locations.some(loc => loc.LocationId === selectedLocation.LocationId) && (
+                <View style={styles.deleteButtonContainer}>
+                    <TouchableOpacity 
+                        style={styles.deleteButton} 
+                        onPress={() => deleteLocation(selectedLocation.LocationId)}
+                        disabled={isDeleting}
+                    >
+                        <ThemedText style={styles.deleteButtonText}>Delete {selectedLocation.location_name}?</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Date Input & Schedule Photoshoot Button */}
+            {isDateInputEnabled && selectedLocation && (
+                <View style={styles.dateInputContainer}>
+                    <TextInput
+                        style={styles.photoshootDateInput}
+                        placeholder="Enter Date for Photoshoot (YYYY-MM-DD)"
+                        value={date}
+                        onChangeText={setDate}
+                        keyboardType="default"
+                        placeholderTextColor="#bbb"
+                    />
+                    <Button title="Book Photoshoot?" onPress={() => schedulePhotoshoot(selectedLocation)} color="#FFC107" />
+                </View>
+            )}
+
+            {/* Floating + Button for Adding Location */}
+            {isAddButtonVisible && !showInput && !isLocationFound && (
+                <TouchableOpacity 
+                    style={styles.addButton} 
+                    onPress={() => setShowInput(true)}
+                >
+                    <Ionicons name="add" size={30} color="white" />
+                </TouchableOpacity>
+            )}
+
+            {/* Floating X Button to Close Input */}
+            {showInput && (
+                <TouchableOpacity 
+                    style={styles.cancelButton} 
+                    onPress={cancelAction}
+                >
+                    <Ionicons name="close" size={30} color="white" />
+                </TouchableOpacity>
+            )}
+        </View>
+    </View>
+    </GestureHandlerRootView>
   );
 };
 
@@ -431,15 +559,12 @@ export default LocationScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    height: 500,
-    marginTop: 10,
+      flex: 1,
+      backgroundColor: "#f5f5f5",
   },
   content: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    paddingBottom: 90,
+      flex: 1,
+      padding: 10,
   },
   titleContainer: {
     width: '100%',
@@ -450,15 +575,6 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     borderRadius: 10,
     paddingHorizontal: 10,
-  },
-  map: {
-    width: '100%',
-    height: '80%',
-  },
-  headerText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
   inputContainer: {
     backgroundColor: '#222', // Dark background for modern feel
@@ -475,99 +591,156 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     color: 'white',
   },
-  photoshootInput: {
-    height: 50,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    color: 'white',
-    fontSize: 12,
+  map: {
+      flex: 1,
+      borderRadius: 10,
+      overflow: "hidden",
   },
-  /* Date Input Positioned Near Bottom */
-  dateInputContainer: {
-    position: 'absolute',
-    top: 160, // Places input near the buttons
-    left: 10,
-    right: 20,
-    width: '100%',
-    backgroundColor: '#2a2a2a', // Dark modern background
-    padding: 10,
-    elevation: 5, // Shadow effect
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 3 },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      position: 'absolute', // Use absolute positioning
+      top: 50, // Position the button 50 units from the top
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20, // Adjust the padding as needed
+      zIndex: 10, // Ensure the button is above other content
+    },
+    addLocationButton: {
+      backgroundColor: '#28a745', // Green color
+      paddingVertical: 12, // Vertical padding
+      paddingHorizontal: 20, // Horizontal padding
+      borderRadius: 5, // Rounded corners
+      alignItems: 'center', // Center content horizontally
+      justifyContent: 'center', // Center content vertically
+      width: '100%', // Button takes full width within container
+      elevation: 3, // Add shadow effect for Android
+      shadowColor: '#000', // Shadow color for iOS
+      shadowOffset: { width: 0, height: 2 }, // Shadow offset
+      shadowOpacity: 0.2, // Shadow opacity for iOS
+      shadowRadius: 2, // Shadow radius for iOS
+    },
+    addLocationButtonText: {
+      color: 'white', // Text color
+      fontSize: 16, // Text size
+      fontWeight: 'bold', // Make the text bold
+      textAlign: 'center', // Center the text
+    },
+  photoshootContainer: {
+      backgroundColor: "white",
+      padding: 10,
+      marginTop: 5,
+      borderRadius: 10,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 5,
+      marginBottom: 45, // space in between the delete button
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
+  photoshootTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      marginBottom: 5,
   },
-  addButton: {
-    position: 'absolute',
-    bottom: 90,
-    right: 20,
-    backgroundColor: '#007AFF', // Modern blue color
-    width: 50,
-    height: 50,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5, // Shadow for Android
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 3 },
+  photoshootItem: {
+      flexDirection: 'row',  // This will align children (date and delete button) horizontally
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "#ccc",
   },
-  cancelButton: {
-    position: 'absolute',
-    bottom: 90, // Same as the blue button
-    right: 20, // Shift left so it's next to the blue button
-    backgroundColor: '#dc3545', // Red color
-    width: 50,
-    height: 50,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5, // Shadow for Android
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  scheduleButton: {
-    position: 'absolute',
-    bottom: 150, // Slightly above the blue add button
-    right: 20,
-    backgroundColor: '#FFC107', // Yellow for contrast
-    width: 50,
-    height: 50,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5, // Shadow for Android
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 3 },
+  photoshootDate: {
+      fontSize: 16,
+      color: "#333",
+      flex: 1,  // This makes sure the date takes up available space and moves the delete button to the right
+      marginRight: 65,  // Adds some spacing between the date and the delete button
   },
   deleteButtonContainer: {
-    position: 'absolute',
-    bottom: 80,
-    alignSelf: 'center',
-    backgroundColor: 'white',
-    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10, // You can reduce this to move it closer to the Photoshoots container
+    padding: 15,
+    backgroundColor: "#dc3545",
     borderRadius: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  deleteButton: {
+    marginBottom: 25, // Add a margin to the bottom to give space between the Delete button and the next element
+    bottom: 45, // Move to the top of the screen
+},
+  deletePhotoshootButton: {
     backgroundColor: 'red',
-    padding: 10,
-    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 65, 
+    height: '100%', 
+    position: 'absolute',
   },
   deleteButtonText: {
-    color: 'black',
-    fontWeight: 'bold',
+      color: "white",
+      fontWeight: "bold",
   },
+  deleteButton: {
+    backgroundColor: "#dc3545",
+    borderRadius: 50,
+},
+    /* Date Input Positioned Near Bottom */
+    dateInputContainer: {
+      position: 'absolute',
+      justifyContent: 'center',
+      top: 30, // Move to the top of the screen
+      left: 10,
+      right: 0,
+      width: '100%',
+      backgroundColor: '#2a2a2a', // Dark modern background
+      padding: 10,
+      elevation: 5, // Shadow effect
+      shadowColor: '#000',
+      shadowOpacity: 0.3,
+      shadowOffset: { width: 0, height: 3 },
+      borderRadius: 15,
+      zIndex: 10, // Ensure it's on top of other elements
+    },
+    
+  photoshootDateInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: "#ccc",
+      padding: 10,
+      borderRadius: 5,
+      backgroundColor: "#fff",
+      marginRight: 10,
+      left: 5,
+      fontSize: 12
+  },
+  addButton: {
+      position: "absolute",
+      bottom: 90,
+      right: 20,
+      backgroundColor: "#1591EA",
+      padding: 15,
+      borderRadius: 30,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 5,
+  },
+  cancelButton: {
+      position: "absolute",
+      bottom: 90,
+      left: 20,
+      backgroundColor: "#dc3545",
+      padding: 15,
+      borderRadius: 30,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 5,
+  },
+  noPhotoshootsMessage: {
+    color: 'gray',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  
 });
