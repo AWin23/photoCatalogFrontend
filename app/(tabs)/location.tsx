@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { format } from 'date-fns';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import * as Notifications from 'expo-notifications';
 
 
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
@@ -63,6 +64,27 @@ const LocationScreen = () => {
 
 
   const slideAnim = useState(new Animated.Value(100))[0]; // Animated value for bottom position
+
+    // handles the post notifications for the photoshoot scheduling
+    useEffect(() => {
+      async function registerForPushNotificationsAsync() {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Permission for notifications was denied.');
+          return;
+        }
+    
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+      }
+    
+      registerForPushNotificationsAsync();
+    }, []);
 
   useEffect(() => {
     if (selectedLocation) {
@@ -299,9 +321,6 @@ const LocationScreen = () => {
       return;
     }
   
-    console.log("Selected Location:", location);
-    console.log("Location ID: " + location.LocationId);
-  
     if (!date) {
       alert("Please enter a date for the photoshoot.");
       console.error("Error: Date is missing.");
@@ -312,13 +331,13 @@ const LocationScreen = () => {
     const localDateTime = new Date(date);
     console.log("Local Date & Time:", localDateTime.toLocaleString()); // Logs local time
   
-    // Convert to ISO format for API (removes time zone issues)
+    // Convert to ISO format for API
     const formattedDate = localDateTime.toISOString();
     console.log("Formatted Date (UTC ISO):", formattedDate);
   
     const requestData = {
       Date: formattedDate,
-      LocationId: location.LocationId, // Ensure we're using a valid existing location
+      LocationId: location.LocationId,
     };
   
     console.log("Sending request with:", requestData);
@@ -344,6 +363,20 @@ const LocationScreen = () => {
       } else {
         console.error("Selected location is null, cannot fetch photoshoots.");
       }
+  
+      // Schedule local push notification for the photoshoot
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "📷 Photoshoot Reminder!",
+          body: `You have a photoshoot scheduled today at ${location.location_name}.`,
+          sound: "default",
+        },
+        trigger: {
+          date: localDateTime, // Triggers at the scheduled date & time
+        },
+      });
+  
+      console.log("Push notification scheduled for:", localDateTime.toLocaleString());
   
     } catch (error) {
       console.error("Error scheduling photoshoot:", error);

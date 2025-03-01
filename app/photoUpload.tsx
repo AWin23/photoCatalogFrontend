@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, Alert, StyleSheet } from 'react-native';
+import { View, Button, StyleSheet } from 'react-native';
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ThemedText } from '@/components/ThemedText';
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {  StyleSheet, Image, Platform, ActivityIndicator, FlatList, View, Text, TouchableOpacity } from 'react-native';
+import {  StyleSheet, Image, ActivityIndicator, FlatList, View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native'; // import navigation hook
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -22,6 +22,7 @@ export default function HomeScreen({ }) {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);  // New state for pull-to-refresh
+    const [imageLoading, setImageLoading] = useState(true); // Track image loading state
 
       const fetchPhotos = async () => {
         setLoading(true);  // Ensure loading is true when fetching data
@@ -80,28 +81,41 @@ export default function HomeScreen({ }) {
         </ThemedView>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#0000ff" />
-        ) : error ? (
-          <ThemedText type="error">Error: {error}</ThemedText>
-        ) : (
-          <FlatList
-            data={photos}
-            keyExtractor={(item) => item.PhotoID.toString()}
-            renderItem={({ item }) => (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : error ? (
+        <ThemedText type="error">Error: {error}</ThemedText>
+      ) : (
+        <FlatList
+          data={photos}
+          keyExtractor={(item) => item.PhotoID.toString()}
+          renderItem={({ item }) => {
+            return (
               <View style={styles.photoCard}>
+                {imageLoading && (
+                  <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} /> // Display loading indicator
+                )}
+
                 {item.FileName ? (
-                  <Image source={{ uri: `${BASE_URL}api${item.ImagePath}` }} style={styles.photo} />
+                  <Image
+                    source={{ uri: `${BASE_URL}api${item.ImagePath}` }}
+                    style={styles.photo}
+                    onLoadStart={() => setImageLoading(true)} // Image loading starts
+                    onLoadEnd={() => setImageLoading(false)} // Image loading ends
+                  />
                 ) : (
                   <Text style={styles.placeholder}>No Image</Text>
                 )}
+
                 <Text>{item.PhotoID}</Text>
                 <Text>{item.TimeStamp || 'No Timestamp'}</Text>
               </View>
-            )}
-            onRefresh={fetchPhotos}
-            refreshing={refreshing}
-          />
-        )}
+            );
+          }}
+          onRefresh={fetchPhotos}
+          refreshing={refreshing}
+        />
+      )}
+
 
         {/* Upload & Delete Buttons */}
         <ThemedView style={styles.stepContainer}>
@@ -157,7 +171,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
   },
+  loadingIndicator: {
+    position: 'absolute', // Position it in the center of the image
+    top: '50%',
+    left: '57%',
+    transform: [{ translateX: -15 }, { translateY: -15 }], // Centering the spinner
+  },
   photoCard: {
+    position: 'relative', // Needed to position the loading indicator correctly
     alignItems: 'center',
     padding: 12, // Slightly more padding for better spacing
     marginBottom: 12,
@@ -180,8 +201,9 @@ const styles = StyleSheet.create({
     borderRadius: 12, // Slightly more roundness for a smooth look
   },
   placeholder: {
+    textAlign: 'center',
     fontSize: 16,
-    color: 'gray',
+    color: '#aaa',
   },
   stepContainer: {
     gap: 8,
