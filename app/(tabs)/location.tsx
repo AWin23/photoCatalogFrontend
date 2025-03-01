@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
+
 const GOOGLE_API_KEY = 'AIzaSyCq3HQzTtwozhVSJk-ZoEbThI7XbUljyBA'; // Replace with your real API key
 const API_URL = "http://{replace with your IP}:8000/api/location/"; // Change this if deployed (replace first part with your real IP)
 const BASE_API_URL = "http://{replace with your IP}:8000/api/"; // change this if reployed (replace first part with your real IP)
@@ -307,7 +308,13 @@ const LocationScreen = () => {
       return;
     }
   
-    const formattedDate = `${date}T00:00:00Z`; // Ensure proper datetime format
+    // Convert input date to local time
+    const localDateTime = new Date(date);
+    console.log("Local Date & Time:", localDateTime.toLocaleString()); // Logs local time
+  
+    // Convert to ISO format for API (removes time zone issues)
+    const formattedDate = localDateTime.toISOString();
+    console.log("Formatted Date (UTC ISO):", formattedDate);
   
     const requestData = {
       Date: formattedDate,
@@ -319,65 +326,62 @@ const LocationScreen = () => {
     try {
       const response = await axios.post(
         `${BASE_API_URL}photoshoots/create/`,
-        requestData, // Make sure this is correctly structured
+        requestData,
         {
           headers: {
-            "Content-Type": "application/json", // Ensure JSON format
+            "Content-Type": "application/json",
           },
         }
       );
   
       console.log("Response Data:", response.data);
       alert("Photoshoot scheduled successfully!");
-      setIsDateInputEnabled(false); // Clear the date input once a location is selected
-      setDate(''); // Clear the address field
-
-      // Check if selectedLocation is not null before calling fetchPhotoshoots
+      setIsDateInputEnabled(false);
+      setDate('');
+  
       if (selectedLocation) {
-        fetchPhotoshoots(selectedLocation.LocationId);  // Re-fetch the photoshoots
+        fetchPhotoshoots(selectedLocation.LocationId);
       } else {
         console.error("Selected location is null, cannot fetch photoshoots.");
       }
-
+  
     } catch (error) {
       console.error("Error scheduling photoshoot:", error);
-  
       if (error.response) {
         console.error("Error Response Data:", error.response.data);
         console.error("Error Response Status:", error.response.status);
       }
-  
       alert("Failed to schedule photoshoot.");
     }
   };
+  
 
-  // fetches the photoshoots 
-  const fetchPhotoshoots = async (locationId: number) => {
-    try {
-      const response = await fetch(`${BASE_API_URL}photoshoots?locationId=${locationId}`);
-      console.log("URL: ", `${BASE_API_URL}photoshoots?locationId=${locationId}`);  // Log the URL
-  
-      if (!response.ok) {
-        console.error("Network response was not ok", response);
-        return;
-      }
-  
-      const data = await response.json();
-      console.log("Fetched Photoshoots data:", data);  // Log the response data
-  
-      if (Array.isArray(data)) {
-        setPhotoshoots([...data]); // Spread operator forces re-render
-      } else {
-        console.error("Fetched data is not an array:", data);
-      }
-    } catch (error) {
-      console.error('Error fetching photoshoots:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // fetches the photoshoots 
+    const fetchPhotoshoots = async (locationId: number) => {
+      try {
+        const response = await fetch(`${BASE_API_URL}photoshoots?locationId=${locationId}`);
+        console.log("URL: ", `${BASE_API_URL}photoshoots?locationId=${locationId}`);  // Log the URL
     
-  
+        if (!response.ok) {
+          console.error("Network response was not ok", response);
+          return;
+        }
+    
+        const data = await response.json();
+        console.log("Fetched Photoshoots data:", data);  // Log the response data
+    
+        if (Array.isArray(data)) {
+          setPhotoshoots([...data]); // Spread operator forces re-render
+        } else {
+          console.error("Fetched data is not an array:", data);
+        }
+      } catch (error) {
+        console.error('Error fetching photoshoots:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
 
   // function to handle cancelling the action of adding a location 
   const cancelAction = () => {
@@ -473,25 +477,52 @@ const LocationScreen = () => {
                       <FlatList
                         data={photoshoots}
                         keyExtractor={(item) => item.PhotoshootId.toString()}
-                        renderItem={({ item }) => (
-                          <Swipeable
-                            renderRightActions={() => (
-                              <TouchableOpacity 
-                                style={styles.deletePhotoshootButton}
-                                onPress={() => handleDeleteConfirmation(item.PhotoshootId)}
+                        renderItem={({ item }) => {
+                          if (!item.Date) {
+                            console.error("Invalid date value:", item);
+                            return null;
+                          }
+                          try {
+                            const utcDate = new Date(item.Date);
+                            const formattedDate = utcDate.toISOString().split('T')[0]; // Get YYYY-MM-DD
+
+                            const formattedLocaleDate = new Intl.DateTimeFormat('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric', 
+                              timeZone: 'UTC'  // Prevents shifting to local time
+                            }).format(new Date(formattedDate));
+
+                            return (
+                              <Swipeable
+                                renderRightActions={() => (
+                                  <TouchableOpacity 
+                                    style={styles.deletePhotoshootButton}
+                                    onPress={() => handleDeleteConfirmation(item.PhotoshootId)}
+                                  />
+                                )}
+                              >
+                                <TouchableOpacity 
+                                  onPress={() => fetchPhotoshoots(selectedLocation.LocationId)}
+                                  style={styles.photoshootItem}
                                 >
-                              </TouchableOpacity>
-                            )}
-                            >
-                            <TouchableOpacity 
-                              onPress={() => fetchPhotoshoots(selectedLocation.LocationId)}  // Fetch photoshoots on press
-                              style={styles.photoshootItem}
-                            >
-                              <Text style={styles.photoshootDate}>📅 {format(new Date(item.Date), 'PPPP')}</Text>
-                              <Text style={styles.deleteButtonText} onPress={() => handleDeleteConfirmation(item.PhotoshootId)}>Delete</Text>
-                            </TouchableOpacity>
-                          </Swipeable>
-                        )}
+                                  <Text style={styles.photoshootDate}>
+                                    📅 {formattedLocaleDate} {/* Displays March 1, 2025 */}
+                                  </Text>
+                                  <Text 
+                                    style={styles.deleteButtonText} 
+                                    onPress={() => handleDeleteConfirmation(item.PhotoshootId)}
+                                  >
+                                    Delete
+                                  </Text>
+                                </TouchableOpacity>
+                              </Swipeable>
+                            );
+                          } catch (error) {
+                            console.error("Error parsing date:", item.Date, error);
+                            return null;
+                          }
+                        }}
                       />
                     )}
                   </>
@@ -648,7 +679,7 @@ const styles = StyleSheet.create({
       borderBottomColor: "#ccc",
   },
   photoshootDate: {
-      fontSize: 16,
+      fontSize: 18,
       color: "#333",
       flex: 1,  // This makes sure the date takes up available space and moves the delete button to the right
       marginRight: 65,  // Adds some spacing between the date and the delete button
