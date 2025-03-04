@@ -1,6 +1,6 @@
 # Welcome to your Expo app 👋
 
-## Check out a demo of the project!
+## Check out a demo of the project below! 🎥
 [![Watch the Demo](https://img.youtube.com/vi/pELCmo9yOTA/maxresdefault.jpg)](https://youtube.com/shorts/pELCmo9yOTA)
 
 
